@@ -326,9 +326,10 @@ src/http.js           loopback server, JSON-RPC, tool dispatch
 src/api.js            the bridge API the tools call
 src/runners/codex.js  codex exec adapter
 src/runners/claude.js claude -p adapter
+src/runners/process.js shared CLI process group and termination
 ```
 
-Tests cover: handshake and version negotiation, tool list and argument validation, dispatch call shape, result baselines, long polling, real HTTP round trips (404/405/202 and bearer), `codex exec` event parsing, binary resolution, success/failure/timeout runs, resume argument split, final-answer-only behaviour, `dsh_wait` terminal states, slot limits and release, followup rebaselining, registry persistence and restart recovery, `maxHops` and rate limiting, per-`cwd` budgets, workspace creation and reuse, `queue`/`steer` delivery and waiting, anchors for steered answers, Claude output parsing and resume arguments, `assumeDefaults` injection, `pendingQuestion` and `dsh_answer`.
+Tests cover: handshake and version negotiation, tool list and argument validation, dispatch call shape, result baselines, long polling, real HTTP round trips (404/405/202 and bearer), `codex exec` event parsing, binary resolution, success/failure/timeout runs, resume argument split, final-answer-only behaviour, `dsh_wait` terminal states, slot limits and release, followup rebaselining, registry persistence and restart recovery, `maxHops` and rate limiting, per-`cwd` budgets, workspace creation and reuse, `queue`/`steer` delivery and waiting, anchors for steered answers, Claude output parsing and resume arguments, `assumeDefaults` injection, `pendingQuestion` and `dsh_answer`. Three focused suites cover the reliability work: dispatch intent that survives an uncertain outcome, cancellation that waits for descendants, and HTTP lifecycle errors.
 
 ## Related
 

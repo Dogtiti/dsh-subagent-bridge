@@ -328,9 +328,10 @@ src/http.js           loopback server, JSON-RPC, tool dispatch
 src/api.js            the bridge API the tools call
 src/runners/codex.js  codex exec adapter
 src/runners/claude.js claude -p adapter
+src/runners/process.js shared CLI process group and termination
 ```
 
-测试覆盖：握手与版本协商、工具清单与参数校验、派发调用形状、结果基线、长轮询、真实 HTTP 往返（404/405/202 与 bearer）、`codex exec` 事件解析、二进制解析、成功/失败/超时、resume 参数分叉、只回最终回答、`dsh_wait` 终态、名额上限与释放、followup 重基线、注册表持久化与重启恢复、`maxHops` 与速率限制、按 `cwd` 的预算、项目创建与复用、`queue`/`steer` 投递与等待、插话回答的锚点、Claude 输出解析与 resume 参数、`assumeDefaults` 注入、`pendingQuestion` 与 `dsh_answer`。
+测试覆盖：握手与版本协商、工具清单与参数校验、派发调用形状、结果基线、长轮询、真实 HTTP 往返（404/405/202 与 bearer）、`codex exec` 事件解析、二进制解析、成功/失败/超时、resume 参数分叉、只回最终回答、`dsh_wait` 终态、名额上限与释放、followup 重基线、注册表持久化与重启恢复、`maxHops` 与速率限制、按 `cwd` 的预算、项目创建与复用、`queue`/`steer` 投递与等待、插话回答的锚点、Claude 输出解析与 resume 参数、`assumeDefaults` 注入、`pendingQuestion` 与 `dsh_answer`。另有三个专门的套件覆盖可靠性改造：发送前落盘意图并在结果未知时保留、取消时等待后代进程退出、HTTP 生命周期异常。
 
 ## 相关插件
 
