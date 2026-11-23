@@ -24,6 +24,7 @@ function fakeHost(options = {}) {
     { seq: 13, type: 'tool/call', data: {} },
   ]
   const state = { running: true }
+  const teamEnabled = []
   const session = { seq: 10, snapshotEvents: () => events }
   const ctx = {
     get(name) {
@@ -49,6 +50,9 @@ function fakeHost(options = {}) {
       if (name === 'sessions') return { get: (id) => (id === SESSION_ID ? session : undefined) }
       if (name === 'sessionTitle') return { get: () => ({ title: '演示会话' }) }
       if (name === 'agents') return { get: (id) => (id === SESSION_ID ? { status: state.running ? 'running' : 'idle' } : undefined) }
+      if (name === 'agentTeams') {
+        return { enabled: teamEnabled, async setEnabled(agent, value) { teamEnabled.push({ agent, value }) } }
+      }
       return undefined
     },
   }
@@ -103,6 +107,28 @@ test('lists the bridge tools', async () => {
   ])
   assert.deepEqual(reply.result.tools[0].inputSchema.required, ['prompt'])
   assert.match(reply.result.tools[0].description, /subagent/)
+})
+
+test('enables Team mode on the worker root before dispatch when asked', async () => {
+  const { api, ctx } = apiUnderTest()
+  const reply = await handleJsonRpc(
+    { jsonrpc: '2.0', id: 91, method: 'tools/call', params: { name: 'dsh_task', arguments: { prompt: '做点事', sessionId: SESSION_ID, mode: 'steer', team: true, timeoutSeconds: 1 } } },
+    api,
+  )
+  assert.equal(reply.error, undefined, JSON.stringify(reply.error))
+  const team = ctx.get('agentTeams')
+  assert.equal(team.enabled.length, 1, 'Team mode must be enabled exactly once')
+  assert.equal(team.enabled[0].value, true)
+  assert.equal(team.enabled[0].agent?.status, 'running', 'setEnabled must receive the live root Agent')
+})
+
+test('leaves Team mode untouched when the worker does not ask for it', async () => {
+  const { api, ctx } = apiUnderTest()
+  await handleJsonRpc(
+    { jsonrpc: '2.0', id: 92, method: 'tools/call', params: { name: 'dsh_task', arguments: { prompt: '做点事', sessionId: SESSION_ID, timeoutSeconds: 1 } } },
+    api,
+  )
+  assert.equal(ctx.get('agentTeams').enabled.length, 0)
 })
 
 test('rejects an unknown method', async () => {

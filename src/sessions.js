@@ -128,6 +128,31 @@ export function parseModelSpec(ctx, spec) {
  * @returns {{ provider: string, model: string, reasoningEffort?: string } | undefined} applied selection.
  */
 
+/**
+ * Enable Team mode on a worker's root session before its first prompt.
+ * The selection is saved as `team/mode` and takes effect immediately; descendants
+ * inherit the live root's mode, so a worker's teammates see the task board too.
+ * @param ctx - Host context.
+ * @param sessionId - root session that receives the selection.
+ * @returns fulfillment after the selection flushes.
+ */
+
+export async function enableTeamMode(ctx, sessionId) {
+  const team = ctx.get('agentTeams')
+  if (team === undefined || team === null || typeof team.setEnabled !== 'function') {
+    throw new Error('Team mode is unavailable: this Host does not compose the agentTeams service')
+  }
+  const agent = ctx.get('agents')?.get?.(sessionId)
+  if (agent === undefined || agent === null) {
+    throw new Error('Team mode needs a live root session; the worker has no running Agent yet')
+  }
+  try {
+    await team.setEnabled(agent, true)
+  } catch (error) {
+    throw new Error(`cannot enable Team mode for ${String(sessionId)}: ${String(error?.message ?? error)}`)
+  }
+}
+
 export async function applyModelSpec(ctx, sessionId, spec, reasoningEffort) {
   if (typeof spec !== 'string' || spec.trim() === '') return undefined
   const service = ctx.get('sessionController')

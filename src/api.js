@@ -8,8 +8,17 @@ import { askable, attachQuestionAnswerer, pendingQuestion } from './questions.js
 import { assertCapacity, rememberOutcome, resolveWorker, saveWorkers } from './registry.js'
 import { resolveClaude, runClaude } from './runners/claude.js'
 import { resolveCodex, runCodex } from './runners/codex.js'
-import { applyModelSpec, attachToWorkspace, finalAnswer, firstDeliveredMessageSeq, lastTurn, readOnce, resolveCwd, safeTitle, waitForTurnEnd, workerStatus, workspaceOptions } from './sessions.js'
+import { applyModelSpec, attachToWorkspace, enableTeamMode, finalAnswer, firstDeliveredMessageSeq, lastTurn, readOnce, resolveCwd, safeTitle, waitForTurnEnd, workerStatus, workspaceOptions } from './sessions.js'
 import { requireString, sleep, text } from './utils.js'
+
+
+/** Build a create request that forwards an agent preset only when one was named. */
+function createRequest(cwd, agentPreset) {
+  const request = {}
+  if (cwd !== undefined) request.cwd = cwd
+  if (typeof agentPreset === 'string' && agentPreset !== '') request.agentPreset = agentPreset
+  return request
+}
 
 export function createApi(ctx, state, settings) {
   /* Callers may hand in a bare bookkeeping object; fill in what the api needs. */
@@ -120,7 +129,7 @@ export function createApi(ctx, state, settings) {
       })
     },
 
-    async spawn({ taskName, message, forkTurns, from, cwd, model, reasoningEffort, workspace, mode }) {
+    async spawn({ taskName, message, forkTurns, from, cwd, agentPreset, model, reasoningEffort, workspace, mode, team }) {
       const service = controller()
       if (service === undefined || service === null) throw new Error('session controller is unavailable')
       state.reserved ??= new Map()
@@ -137,11 +146,12 @@ export function createApi(ctx, state, settings) {
           sessionId = (await service.fork({ sessionId: from }))?.sessionId
           if (typeof sessionId !== 'string' || sessionId === '') throw new Error('forking returned no session id')
         } else {
-          sessionId = (await service.create(cwd === undefined ? {} : { cwd }))?.sessionId
+          sessionId = (await service.create(createRequest(cwd, agentPreset)))?.sessionId
           if (typeof sessionId !== 'string' || sessionId === '') throw new Error('session controller did not return a session id')
           placed = await attachToWorkspace(ctx, sessionId, cwd, workspaceOptions(workspace))
         }
         const appliedModel = await applyModelSpec(ctx, sessionId, model, reasoningEffort)
+        if (team === true) await enableTeamMode(ctx, sessionId)
         attachQuestionAnswerer(state, ctx.get('agents')?.get?.(sessionId))
         const before = Number(sessions()?.get?.(sessionId)?.seq ?? 0)
         const deliveryMode = mode === 'steer' ? 'steer' : 'queue'
@@ -250,7 +260,7 @@ export function createApi(ctx, state, settings) {
       return rows
     },
 
-    async task({ prompt, cwd, sessionId, agentPreset, timeoutSeconds, model, reasoningEffort, workspace, mode, signal }) {
+    async task({ prompt, cwd, sessionId, agentPreset, timeoutSeconds, model, reasoningEffort, workspace, mode, team, signal }) {
       const service = controller()
       if (service === undefined || service === null) throw new Error('session controller is unavailable')
       if (signal?.aborted) throw new Error('caller cancelled before dispatch')
@@ -263,7 +273,7 @@ export function createApi(ctx, state, settings) {
       let targetId = sessionId
       const created = targetId === undefined
       if (created) {
-        targetId = (await service.create(cwd === undefined ? {} : { cwd }))?.sessionId
+        targetId = (await service.create(createRequest(cwd, agentPreset)))?.sessionId
         if (typeof targetId !== 'string' || targetId === '') throw new Error('session controller did not return a session id')
         placed = await attachToWorkspace(ctx, targetId, cwd, workspaceOptions(workspace))
       } else if (mode !== 'steer' && ctx.get('agents')?.get?.(targetId)?.status === 'running') {
@@ -278,6 +288,7 @@ export function createApi(ctx, state, settings) {
       try {
         if (record.status === 'closed') throw new Error('that worker is closed; reopen it with dsh_followup')
         appliedModel = await applyModelSpec(ctx, targetId, model, reasoningEffort)
+        if (team === true) await enableTeamMode(ctx, targetId)
         if (signal?.aborted) throw new Error('caller cancelled before dispatch')
         if (record.status === 'closed') throw new Error('that worker was closed before dispatch')
         attachQuestionAnswerer(state, ctx.get('agents')?.get?.(targetId))

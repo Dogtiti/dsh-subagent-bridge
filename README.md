@@ -106,6 +106,10 @@ dsh_spawn({ task_name: "review", message: "…", model: "opencode-go/deepseek-v4
 - Omitted means the session is untouched.
 - The switch happens before the first prompt, so the worker's first turn already runs on it, and the profile default model is not modified.
 
+### Team mode
+
+`dsh_task` and `dsh_spawn` accept `team: true` to enable DSH Team mode on the worker's root session before its first message, so the worker starts with the shared task board and teammate tools. It requires a Host that composes `@deepseek-ai/dsh-agent-team`; without it the call fails with an explicit error instead of silently degrading. `dsh_followup` keeps the worker's existing mode.
+
 ### Workspace
 
 DSH groups sessions into projects; a new session lands under "Ungrouped" unless its directory is already a project.

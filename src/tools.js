@@ -36,6 +36,11 @@ export const TOOLS = [
           type: 'string',
           description: 'Reasoning level for `model`, if that model offers levels (low, medium, high, max...).',
         },
+        team: {
+          type: 'boolean',
+          description:
+            'Enable DSH Team mode for this worker before its first message, so it gets the shared task board and teammate tools. Requires a Host that composes @deepseek-ai/dsh-agent-team. Omit for the Host default (Team off).',
+        },
         timeoutSeconds: { type: 'number', description: 'How long to wait for the turn to finish. Default 300, max 600.' },
       },
       required: ['prompt'],
@@ -58,6 +63,12 @@ export const TOOLS = [
         },
         from: { type: 'string', description: 'Session id to fork when fork_turns is "all".' },
         cwd: { type: 'string', description: 'Working directory for a fresh worker.' },
+        agentPreset: { type: 'string', description: 'Agent preset for a fresh worker.' },
+        team: {
+          type: 'boolean',
+          description:
+            'Enable DSH Team mode for this worker before its first message, so it gets the shared task board and teammate tools. Requires a Host that composes @deepseek-ai/dsh-agent-team. Omit for the Host default (Team off).',
+        },
         model: {
           type: 'string',
           description:

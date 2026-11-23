@@ -106,6 +106,10 @@ dsh_spawn({ task_name: "review", message: "…", model: "opencode-go/deepseek-v4
 - 不传则完全不动会话。
 - 切换发生在第一次 prompt 之前，所以 worker 第一轮就已经在新模型上跑，且不会改动 profile 的默认模型。
 
+### 团队模式
+
+`dsh_task` 和 `dsh_spawn` 支持 `team: true`：在 worker 的第一条消息之前，给它所在的根会话开启 DSH Team 模式，worker 从第一轮就带共享任务板和队友工具。要求 Host 组合了 `@deepseek-ai/dsh-agent-team`；未组合时调用会明确报错，不会静默降级。`dsh_followup` 沿用 worker 已有的模式。
+
 ### 项目归属
 
 DSH 把会话分组为项目；新建会话默认落在「未分组」，除非所在目录已经是项目。

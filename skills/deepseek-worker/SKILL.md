@@ -271,3 +271,16 @@ dsh_list_workers()   // [{ task_name, sessionId, status }, …]
 - 不要把三件不相关的事塞进一次调用；拆开更可控（也可以直接并行）。
 - 不要超过 4 个 worker，也不要让已完成的 worker 一直挂着不关。
 - 不要在 DSH 未启动时假装委派成功。
+
+## Team 模式（可选）：让 worker 带团队工具开工
+
+默认的 worker 没有 Team 工具。需要共享任务板、队友协作时，给 `dsh_task` / `dsh_spawn` 传 `team: true`：
+
+```js
+dsh_spawn({ task_name: "audit", message: "…", team: true })
+```
+
+- 只在该 worker 的根会话上开启（写入 `team/mode`），不影响你或其他会话；worker 第一轮就开始带团队工具。
+- 要求 Host 组合了 `@deepseek-ai/dsh-agent-team`；没有组合时工具会明确报错，不会静默降级。
+- `dsh_followup` 沿用已有模式，不需要重复传。
+- 不需要共享任务板时不要开：Team 只提供任务板与协调语义，不隔离工作目录，也不自动释放任务归属。
