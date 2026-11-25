@@ -85,7 +85,7 @@ dsh_close({ "worker": "audit_api" })
 
 **规则（与 Codex 一致）**
 
-- **并发上限 4 个 worker**（`maxWorkers`）。**已完成但没 `dsh_close` 的也占名额** —— 用完就关，别一直挂着。
+- **并发上限 12 个 worker**（`maxWorkers`，全局共用一个池子，不分工作目录）。**已完成但没 `dsh_close` 的也占名额** —— 用完就关，别一直挂着。
 - `dsh_task` 是阻塞的、一次一件；它**不占**那 4 个名额，适合"我就等着这一件"。
 - `dsh_wait` 每次给满 **240000**（毫秒）。**它返回 `timedOut: true` / 仍有 `"running"` 时，不代表结束，只代表"还没好"** —— 继续调它，直到没有任何 target 是 `running`/`pending`。短超时反复轮询是错的（Codex 原话：prefer longer waits (minutes) to avoid busy polling）。
 - `dsh_wait` 只要**任意一个**到终态就返回，所以它是"收割完成项"的循环，而不是"等全部"。
@@ -269,7 +269,7 @@ dsh_list_workers()   // [{ task_name, sessionId, status }, …]
 - 不要把密钥、私有凭据写进 `prompt`——它会进入 DSH 的会话日志。
 - 不要让 worker 操作你的本地环境（它有自己的权限与目录）。
 - 不要把三件不相关的事塞进一次调用；拆开更可控（也可以直接并行）。
-- 不要超过 4 个 worker，也不要让已完成的 worker 一直挂着不关。
+- 不要让已完成的 worker 一直挂着不关；同时开太多会互相拖慢。
 - 不要在 DSH 未启动时假装委派成功。
 
 ## Team 模式（可选）：让 worker 带团队工具开工

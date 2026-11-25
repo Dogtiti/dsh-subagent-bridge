@@ -138,7 +138,7 @@ export function createApi(ctx, state, settings) {
       guardDepth(state, settings, 0, 'dsh_spawn')
       state.reserved.set(taskName, root)
       try {
-        assertCapacity(state, settings, root, taskName)
+        assertCapacity(state, settings, taskName)
         takeDispatchSlot(state, settings)
         let placed
         let sessionId
@@ -195,7 +195,7 @@ export function createApi(ctx, state, settings) {
       let transaction
       try {
         /* Retain main's reopen behavior, but roll it back if no prompt is accepted. */
-        if (record.status === 'closed' && record.countsTowardLimit !== false) assertCapacity(state, settings, record.root ?? '(default)')
+        if (record.status === 'closed' && record.countsTowardLimit !== false) assertCapacity(state, settings)
         takeDispatchSlot(state, settings)
         record.status = 'open'
         record.updatedAt = Date.now()
@@ -440,7 +440,7 @@ export function createApi(ctx, state, settings) {
         const existing = resolveWorker(state, sessionId)?.record
         const previous = existing === undefined ? undefined : { ...existing }
         const record = existing ?? newRecord(sessionId, '(default)')
-        if (record.status === 'closed' && record.countsTowardLimit !== false) assertCapacity(state, settings, record.root ?? '(default)')
+        if (record.status === 'closed' && record.countsTowardLimit !== false) assertCapacity(state, settings)
         takeDispatchSlot(state, settings)
         record.status = 'open'
         const before = Number(sessions()?.get?.(sessionId)?.seq ?? 0)

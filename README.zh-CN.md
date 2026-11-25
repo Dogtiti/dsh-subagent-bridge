@@ -231,7 +231,6 @@ worker 真的提问时，`dsh_wait` 会把问题带出来：
 | `maxHops` | `1` | 委派深度上限 |
 | `dispatchPerMinute` | `10` | 每个窗口允许的派发次数 |
 | `dispatchWindowMs` | `60000` | 窗口长度 |
-| `maxWorkersPerRoot` | `4` | 每个工作目录的 worker 上限 |
 | `maxWorkers` | `12` | 全局 worker 上限 |
 | `workerTtlMs` | `86400000` | 记录过期后不再占名额 |
 | `waitTimeoutMs` | `240000` | `dsh_wait` 默认超时 |

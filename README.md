@@ -229,7 +229,6 @@ Returns `{ ok, text, sessionId, durationMs }`. Runs `claude -p --output-format j
 | `maxHops` | `1` | Delegation depth limit |
 | `dispatchPerMinute` | `10` | Dispatches allowed per window |
 | `dispatchWindowMs` | `60000` | Window length |
-| `maxWorkersPerRoot` | `4` | Workers per working directory |
 | `maxWorkers` | `12` | Global worker cap |
 | `workerTtlMs` | `86400000` | Records stop counting once stale |
 | `waitTimeoutMs` | `240000` | Default `dsh_wait` timeout |
@@ -258,7 +257,7 @@ Carry the work out directly instead of delegating again.
 rate limit: 10 dispatches per 60s reached; retry in 23s
 ```
 
-**Slots.** 4 workers per `cwd`, 12 globally. A finished worker keeps its slot until `dsh_close`; records older than 24h stop counting. Blocking `dsh_task` calls are registered but do not consume a slot. Buckets are keyed by `cwd` because the MCP endpoint is shared and carries no session identity.
+**Slots.** 12 workers in one global pool, shared by every working directory. A finished worker keeps its slot until `dsh_close`; records older than 24h stop counting. Blocking `dsh_task` calls are registered but do not consume a slot.
 
 **Persistence.** `workers.json` keeps the registry and each turn's baseline: workers survive a restart, finished ones replay their cached answer, cold sessions report `offline`, and the file keeps at most 200 records.
 

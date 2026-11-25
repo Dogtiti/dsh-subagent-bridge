@@ -753,7 +753,6 @@ function workerHost(options = {}) {
   const api = createApi(ctx, state, {
     maxResultChars: 1000,
     maxWorkers: options.maxWorkers ?? 4,
-    maxWorkersPerRoot: options.maxWorkersPerRoot ?? 4,
     workerTtlMs: options.workerTtlMs ?? 24 * 60 * 60 * 1000,
     maxHops: options.maxHops ?? 1,
     dispatchPerMinute: options.dispatchPerMinute ?? 1000,
@@ -978,13 +977,12 @@ test('blocking tasks do not consume the spawn budget', async () => {
 })
 
 test('stale worker records stop holding a slot after the TTL', async () => {
-  const { api } = workerHost({ maxWorkers: 4, maxWorkersPerRoot: 2 })
-  /* Fill both slots of one root, then age them past the TTL. */
+  const { api } = workerHost({ maxWorkers: 1 })
+  /* One global slot, already taken. */
   await api.spawn({ taskName: 'a1', message: 'a', forkTurns: 'none', cwd: '/repo/a' })
-  await api.spawn({ taskName: 'a2', message: 'b', forkTurns: 'none', cwd: '/repo/a' })
-  await assert.rejects(() => api.spawn({ taskName: 'a3', message: 'c', forkTurns: 'none', cwd: '/repo/a' }), /worker limit reached for \/repo\/a \(2\)/)
+  await assert.rejects(() => api.spawn({ taskName: 'a2', message: 'b', forkTurns: 'none', cwd: '/repo/a' }), /global worker limit reached \(1\)/)
 
-  const stale = workerHost({ maxWorkers: 4, maxWorkersPerRoot: 2, workerTtlMs: 1000 })
+  const stale = workerHost({ maxWorkers: 1, workerTtlMs: 1000 })
   await stale.api.spawn({ taskName: 'old1', message: 'a', forkTurns: 'none', cwd: '/repo/a' })
   const record = (await stale.api.listWorkers()).find((row) => row.task_name === 'old1')
   assert.ok(record)
@@ -993,17 +991,14 @@ test('stale worker records stop holding a slot after the TTL', async () => {
   assert.equal(fresh.task_name, 'new1')
 })
 
-test('each working directory gets its own budget up to the global ceiling', async () => {
-  const { api } = workerHost({ maxWorkers: 4, maxWorkersPerRoot: 2 })
+test('working directories share one worker budget', async () => {
+  const { api } = workerHost({ maxWorkers: 2 })
   await api.spawn({ taskName: 'a1', message: 'a', forkTurns: 'none', cwd: '/repo/a' })
-  await api.spawn({ taskName: 'a2', message: 'b', forkTurns: 'none', cwd: '/repo/a' })
-  /* Another project still has room. */
+  /* A different project draws from the same budget. */
   await api.spawn({ taskName: 'b1', message: 'c', forkTurns: 'none', cwd: '/repo/b' })
-  await api.spawn({ taskName: 'b2', message: 'd', forkTurns: 'none', cwd: '/repo/b' })
-  /* The global ceiling of 4 is now reached. */
   await assert.rejects(
     () => api.spawn({ taskName: 'c1', message: 'e', forkTurns: 'none', cwd: '/repo/c' }),
-    /global worker limit reached \(4\)/,
+    /global worker limit reached \(2\)/,
   )
 })
 
@@ -1388,7 +1383,7 @@ test('a custom assumption policy replaces the built-in text', async () => {
 })
 
 test('concurrent spawns cannot exceed the worker budget', async () => {
-  const host = workerHost({ maxWorkers: 1, maxWorkersPerRoot: 1 })
+  const host = workerHost({ maxWorkers: 1 })
   const first = host.api.spawn({ taskName: 'a', message: 'x', cwd: '/tmp/race' })
   const second = host.api.spawn({ taskName: 'b', message: 'y', cwd: '/tmp/race' })
   const results = await Promise.allSettled([first, second])

@@ -13,7 +13,7 @@ async function host(t, options = {}) {
   t.after(() => rm(dir, { recursive: true, force: true }))
   const settings = {
     workersFile: join(dir, 'workers.json'), maxResultChars: 5000, maxWorkers: options.maxWorkers ?? 4,
-    maxWorkersPerRoot: 4, workerTtlMs: 86400000, maxHops: 1, dispatchPerMinute: 100,
+    workerTtlMs: 86400000, maxHops: 1, dispatchPerMinute: 100,
     dispatchWindowMs: 60000, waitTimeoutMs: 1000, taskTimeoutSeconds: 10, readWaitSeconds: 10,
     assumeDefaults: false,
   }

@@ -19,7 +19,6 @@ export const DEFAULTS = {
   taskTimeoutSeconds: MAX_BLOCKING_SECONDS,
   waitTimeoutMs: MAX_BLOCKING_SECONDS * 1000,
   maxWorkers: 12,
-  maxWorkersPerRoot: 4,
   workerTtlMs: 24 * 60 * 60 * 1000,
   maxHops: 1,
   dispatchPerMinute: 10,
@@ -74,10 +73,6 @@ export function resolveSettings(config) {
     if (key === 'dispatchWindowMs') {
       const ms = Number(value)
       if (Number.isFinite(ms) && ms > 0) merged.dispatchWindowMs = ms
-    }
-    if (key === 'maxWorkersPerRoot') {
-      const count = Number(value)
-      if (Number.isInteger(count) && count > 0) merged.maxWorkersPerRoot = count
     }
     if (key === 'workerTtlMs') {
       const ms = Number(value)

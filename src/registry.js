@@ -134,17 +134,15 @@ export function resolveWorker(state, reference) {
  * @param settings - resolved settings.
  */
 
-export function assertCapacity(state, settings, root, ignore) {
+export function assertCapacity(state, settings, ignore) {
   const now = Date.now()
   /* In-flight spawns hold a slot before their first await, otherwise two concurrent calls
    * both read the old count and both proceed. The caller's own reservation is excluded: it
-   * is the request being measured, not a competitor. */
+   * is the request being measured, not a competitor. Working directories share one budget. */
   let total = 0
-  let inRoot = 0
-  for (const [name, reservedRoot] of state.reserved ?? []) {
+  for (const [name] of state.reserved ?? []) {
     if (name === ignore) continue
     total += 1
-    if (reservedRoot === root) inRoot += 1
   }
   for (const record of state.workers.values()) {
     if (record.status === 'closed') continue
@@ -152,12 +150,6 @@ export function assertCapacity(state, settings, root, ignore) {
     /* A record nobody has touched for a whole TTL stops holding a slot. */
     if (now - Number(record.updatedAt ?? record.createdAt ?? 0) > settings.workerTtlMs) continue
     total += 1
-    if (record.root === root) inRoot += 1
-  }
-  if (inRoot >= settings.maxWorkersPerRoot) {
-    throw new Error(
-      `worker limit reached for ${root} (${settings.maxWorkersPerRoot}); close one with dsh_close before spawning another`,
-    )
   }
   if (total >= settings.maxWorkers) {
     throw new Error(
