@@ -259,6 +259,8 @@ rate limit: 10 dispatches per 60s reached; retry in 23s
 
 **Slots.** 12 workers in one global pool, shared by every working directory. A finished worker keeps its slot until `dsh_close`; records older than 24h stop counting. Blocking `dsh_task` calls are registered but do not consume a slot.
 
+**Workspaces.** `workspaceRegistry.create` dedupes by canonical path only, so several projects may share one title. A create whose title already names a different directory is refused instead: the worker stays ungrouped and the result carries `workspace: { skipped: true, reason: 'duplicate-title', title, existingPath, path }`. Reusing the project that owns the directory is unaffected.
+
 **Persistence.** `workers.json` keeps the registry and each turn's baseline: workers survive a restart, finished ones replay their cached answer, cold sessions report `offline`, and the file keeps at most 200 records.
 
 **Security.** Loopback only; every request needs the token in the path or a bearer header, compared in constant time; the token is generated once and persisted. Holding the endpoint file is equivalent to being able to send messages to sessions — keep its `0600`/`0700` permissions. DSH's own sandbox and approval rules still apply to anything delivered.

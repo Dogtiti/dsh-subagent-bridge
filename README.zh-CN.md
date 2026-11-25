@@ -259,7 +259,9 @@ Carry the work out directly instead of delegating again.
 rate limit: 10 dispatches per 60s reached; retry in 23s
 ```
 
-**名额。** 每个 `cwd` 4 个，全局 12 个。完成的 worker 在 `dsh_close` 之前仍占名额；记录超过 24 小时自动不再计数。阻塞式 `dsh_task` 只登记、不占名额。按 `cwd` 分桶是因为 MCP 端点共享且请求里没有会话身份。
+**名额。** 全局一个池子，上限 12 个（`maxWorkers`），不区分工作目录。完成的 worker 在 `dsh_close` 之前仍占名额；记录超过 24 小时自动不再计数。阻塞式 `dsh_task` 只登记、不占名额。
+
+**项目归属。** `workspaceRegistry.create` 只按 canonical path 去重，因此不同目录可以同名。若请求新建的标题已经被别的目录占用，桥拒绝创建：worker 保持未分组，结果显示 `workspace: { skipped: true, reason: 'duplicate-title', title, existingPath, path }`。命中本目录已有项目时照常复用，不受影响。
 
 **持久化。** `workers.json` 保存注册表与每轮基线：重启后 worker 仍在，已完成的直接回放缓存答案，冷会话报告 `offline`，文件最多保留 200 条。
 

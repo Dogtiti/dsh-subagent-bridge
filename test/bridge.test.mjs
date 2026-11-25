@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import { EventEmitter } from 'node:events'
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -430,6 +430,7 @@ function taskHost(options = {}) {
       if (name === 'workspaceRegistry') {
         return {
           resolveByPath: async (path) => (options.workspaceByPath?.[path] ?? undefined),
+          list: () => options.workspaces ?? [],
           create: async (path, title) => {
             calls.workspaceCreate.push({ path, title })
             const workspace = {
@@ -521,6 +522,7 @@ test('dsh_task delivers only the final answer, not the whole turn', async () => 
       if (name === 'workspaceRegistry') {
         return {
           resolveByPath: async (path) => (options.workspaceByPath?.[path] ?? undefined),
+          list: () => options.workspaces ?? [],
           create: async (path, title) => {
             calls.workspaceCreate.push({ path, title })
             const workspace = {
@@ -666,6 +668,7 @@ function workerHost(options = {}) {
       if (name === 'workspaceRegistry') {
         return {
           resolveByPath: async (path) => (options.workspaceByPath?.[path] ?? undefined),
+          list: () => options.workspaces ?? [],
           create: async (path, title) => {
             calls.workspaceCreate.push({ path, title })
             const workspace = {
@@ -1128,6 +1131,45 @@ test('a workspace title is passed through', async (t) => {
   const result = await api.spawn({ taskName: 'w', message: 'x', forkTurns: 'none', cwd, workspace: 'Clawer' })
   assert.deepEqual(calls.workspaceCreate, [{ path: cwd, title: 'Clawer' }])
   assert.equal(result.workspace.title, 'Clawer')
+})
+
+test('an explicit title that already names another directory is refused, not duplicated', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'bridge-workspace-'))
+  t.after(() => rm(dir, { recursive: true, force: true }))
+  const cwd = join(dir, 'tmp-clone')
+  const existing = { id: 'ws-real', path: join(dir, 'real-project'), title: 'AI-SaaS' }
+  await mkdir(existing.path, { recursive: true })
+  const { api, calls } = workerHost({ workspaces: [existing] })
+  const result = await api.task({ prompt: 'x', cwd, workspace: 'AI-SaaS' })
+  assert.equal(calls.workspaceCreate.length, 0, 'a duplicate title must not create a second project')
+  assert.equal(result.workspace.skipped, true)
+  assert.equal(result.workspace.reason, 'duplicate-title')
+  assert.equal(result.workspace.title, 'AI-SaaS')
+  assert.equal(result.workspace.existingPath, existing.path)
+  assert.equal(calls.workspaceAttached.length, 0, 'the worker is left ungrouped instead of misplaced')
+})
+
+test('a directory-derived title is refused too when another project owns that name', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'bridge-workspace-'))
+  t.after(() => rm(dir, { recursive: true, force: true }))
+  const cwd = join(dir, 'repo')
+  const existing = { id: 'ws-other', path: join(dir, 'elsewhere', 'repo'), title: 'repo' }
+  await mkdir(existing.path, { recursive: true })
+  const { api, calls } = workerHost({ workspaces: [existing] })
+  const result = await api.task({ prompt: 'x', cwd, workspace: true })
+  assert.equal(calls.workspaceCreate.length, 0)
+  assert.equal(result.workspace.reason, 'duplicate-title')
+})
+
+test('the same title on the same directory is a reuse, not a collision', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'bridge-workspace-'))
+  t.after(() => rm(dir, { recursive: true, force: true }))
+  const owner = { id: 'ws-here', path: dir, title: 'AI-SaaS', attached: [], attachSession: async (id) => { owner.attached.push(id) } }
+  const { api, calls } = workerHost({ workspaceByPath: { [dir]: owner }, workspaces: [owner] })
+  const result = await api.task({ prompt: 'x', cwd: dir, workspace: 'AI-SaaS' })
+  assert.equal(calls.workspaceCreate.length, 0)
+  assert.equal(result.workspace.id, 'ws-here')
+  assert.deepEqual(owner.attached, [result.sessionId])
 })
 
 test('without the flag an unowned directory leaves the worker ungrouped, and is never created', async () => {

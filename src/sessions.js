@@ -1,4 +1,5 @@
-import { mkdir } from 'node:fs/promises'
+import { mkdir, realpath } from 'node:fs/promises'
+import { basename } from 'node:path'
 import { ok, text } from './utils.js'
 
 export function lastTurn(ctx, sessionId) {
@@ -196,6 +197,22 @@ export function workspaceOptions(workspace) {
  * @param cwd - directory the session was opened in.
  */
 
+/** Canonical spelling of a directory, falling back to the raw value when it cannot resolve. */
+async function canonicalPath(path) {
+  try { return await realpath(path) } catch { return String(path) }
+}
+
+/** Find a project that already owns this display title at a different directory. */
+async function titleOwner(registry, title, cwd) {
+  if (typeof registry.list !== 'function') return undefined
+  const target = await canonicalPath(cwd)
+  for (const workspace of registry.list() ?? []) {
+    if (workspace === undefined || workspace === null || workspace.title !== title) continue
+    if ((await canonicalPath(workspace.path)) !== target) return workspace
+  }
+  return undefined
+}
+
 export async function attachToWorkspace(ctx, sessionId, cwd, options = {}) {
   if (typeof cwd !== 'string' || cwd === '') return undefined
   try {
@@ -210,7 +227,20 @@ export async function attachToWorkspace(ctx, sessionId, cwd, options = {}) {
        * is exactly that, so the path is materialised first. */
       await mkdir(cwd, { recursive: true }).catch(() => {})
       const title = typeof options.title === 'string' && options.title.trim() !== '' ? options.title.trim() : undefined
-      workspace = await registry.create(cwd, title)
+      const owner = await registry.resolveByPath?.(cwd)
+      if (owner !== undefined && owner !== null) {
+        workspace = owner
+      } else {
+        /* The registry dedupes by canonical path only, so one title can name several
+         * projects. Refuse that: the caller asked to group this directory, not to create a
+         * second project with a name that already means somewhere else. */
+        const named = title ?? basename(cwd)
+        const clash = named === undefined || named === '' ? undefined : await titleOwner(registry, named, cwd)
+        if (clash !== undefined) {
+          return { skipped: true, reason: 'duplicate-title', title: named, existingPath: clash.path, path: cwd }
+        }
+        workspace = await registry.create(cwd, title)
+      }
     } else {
       workspace = await registry.resolveByPath?.(cwd)
     }
